@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -57,15 +58,82 @@ void h_node_print(void *node)
 }
 
 typedef struct HuffmanCode {
-    unsigned long code;
+    unsigned long data;
     unsigned short offset;
 } HuffmanCode;
+
+typedef struct BitStream {
+    unsigned char pending;
+    unsigned char offset;
+    FILE *stream;
+} BitStream;
+
+int get_high_byte(HuffmanCode code)
+{
+    int shift = code.offset - 8;
+    if (shift >= 0) {
+        return (code.data & (0xFF << shift)) >> shift;
+    }
+    return -1;
+}
+
+void bitstream_flush(BitStream *bs)
+{
+    if (bs->offset == 0) {
+        return;
+    }
+
+    fputc(bs->pending, bs->stream);
+    bs->pending = 0;
+    bs->offset = 0;
+}
+
+void bitstream_write_h_code(BitStream *bs, HuffmanCode code)
+{
+    if (code.offset < bs->offset) {
+        // 00100000 == bs->pending
+        //    ^     == bs->offset
+        // 00000100 == code.data
+        //      ^   == code.offset
+        //      111 == 0xff >> (8 - code.offset) == bottom_bits_mask
+        //    111    == code.offset - bs->offset
+
+        bs->offset -= code.offset;
+        size_t bottom_bits_mask = 0xff >> (8 - code.offset);
+        bs->pending |= (code.data & bottom_bits_mask) << bs->offset;
+        code.offset = 0;
+    } else if (bs->offset > 0) {
+        // 00101000 == bs->pending
+        //      ^   == bs->offset
+        // 00000100 == code.data
+        //    ^     == code.offset
+        //      111 == 0xff >> (8 - bs->offset) == top_bits_mask
+        //    111   == code.offset - bs->offset
+
+        code.offset -= bs->offset;
+        size_t top_bits_mask = (0xff >> (8 - bs->offset)) << code.offset;
+        bs->pending |= (code.data & top_bits_mask) >> code.offset;
+        bitstream_flush(bs);
+    }
+
+    while (code.offset >= 8) {
+        int high_byte = get_high_byte(code);
+        assert(high_byte >= 0 && high_byte <= 255);
+        fputc(high_byte, bs->stream);
+        code.offset -= 8;
+    }
+
+    if (code.offset > 0) {
+        bs->offset = 8 - code.offset;
+        bs->pending = (code.data & (0xFF >> bs->offset)) << bs->offset;
+    }
+}
 
 char *h_code_to_string(HuffmanCode self)
 {
     char *string = malloc(sizeof(*string) * (self.offset + 1));
     for (int i = self.offset - 1; i >= 0; i--) {
-        string[self.offset - 1 - i] = self.code & (1 << i) ? '1' : '0';
+        string[self.offset - 1 - i] = self.data & (1 << i) ? '1' : '0';
     }
     string[self.offset] = '\0';
     return string;
@@ -79,10 +147,10 @@ void h_tree_write(FILE *stream, HuffmanNode *root, HuffmanCode h_code)
         free(code_str);
     }
     if (root->left) {
-        h_tree_write(stream, root->left, (HuffmanCode){h_code.code << 1, h_code.offset + 1});
+        h_tree_write(stream, root->left, (HuffmanCode){h_code.data << 1, h_code.offset + 1});
     }
     if (root->right) {
-        h_tree_write(stream, root->right, (HuffmanCode){h_code.code << 1 | 1, h_code.offset + 1});
+        h_tree_write(stream, root->right, (HuffmanCode){h_code.data << 1 | 1, h_code.offset + 1});
     }
 }
 
@@ -92,14 +160,14 @@ HuffmanCode h_tree_search(HuffmanNode *node, char c, HuffmanCode h_code)
         return h_code;
     } else if (node->left) {
         HuffmanCode r_code =
-            h_tree_search(node->left, c, (HuffmanCode){h_code.code << 1, h_code.offset + 1});
-        if (r_code.code != 0 && r_code.offset != 0) {
+            h_tree_search(node->left, c, (HuffmanCode){h_code.data << 1, h_code.offset + 1});
+        if (r_code.offset != 0) {
             return r_code;
         }
     } else if (node->right) {
         HuffmanCode r_code =
-            h_tree_search(node->right, c, (HuffmanCode){h_code.code << 1 | 1, h_code.offset + 1});
-        if (r_code.code != 0 && r_code.offset != 0) {
+            h_tree_search(node->right, c, (HuffmanCode){h_code.data << 1 | 1, h_code.offset + 1});
+        if (r_code.offset != 0) {
             return r_code;
         }
     }
@@ -120,18 +188,18 @@ size_t reverse_bits(size_t num, size_t n_bits)
 HuffmanCode h_tree_bubble(HuffmanNode *leaf, HuffmanCode h_code)
 {
     if (leaf == NULL || leaf->parent == NULL) {
-        h_code.code = reverse_bits(h_code.code, h_code.offset);
+        h_code.data = reverse_bits(h_code.data, h_code.offset);
         return h_code;
     } else if (leaf->parent->left == leaf) {
         HuffmanCode r_code =
-            h_tree_bubble(leaf->parent, (HuffmanCode){h_code.code << 1, h_code.offset + 1});
-        if (r_code.code != 0 && r_code.offset != 0) {
+            h_tree_bubble(leaf->parent, (HuffmanCode){h_code.data << 1, h_code.offset + 1});
+        if (r_code.offset != 0) {
             return r_code;
         }
     } else if (leaf->parent->right == leaf) {
         HuffmanCode r_code =
-            h_tree_bubble(leaf->parent, (HuffmanCode){h_code.code << 1 | 1, h_code.offset + 1});
-        if (r_code.code != 0 && r_code.offset != 0) {
+            h_tree_bubble(leaf->parent, (HuffmanCode){h_code.data << 1 | 1, h_code.offset + 1});
+        if (r_code.offset != 0) {
             return r_code;
         }
     }
@@ -154,15 +222,42 @@ HuffmanNode *h_tree_from(BHeap *heap)
     return tree;
 }
 
+void huff_write_tree_file(HuffmanNode *tree, char *input_path)
+{
+    size_t needed = snprintf(NULL, 0, "%s.htree", input_path);
+    char *tree_file_path = malloc(needed);
+    sprintf(tree_file_path, "%s.htree", input_path);
+    FILE *tree_file = fopen(tree_file_path, "w");
+    h_tree_write(tree_file, tree, (HuffmanCode){0});
+    free(tree_file_path);
+    fclose(tree_file);
+}
+
+void huff_write_encoded_file(HuffmanNode **leaf_pointers, char *output_path, FILE *in_file)
+{
+    FILE *out_file = fopen(output_path, "w");
+    BitStream bs = {.stream = out_file};
+    fseek(in_file, 0, SEEK_SET);
+    char c;
+    while ((c = fgetc(in_file)) != EOF) {
+        HuffmanNode *leaf = leaf_pointers[(int)c];
+        HuffmanCode h_code = h_tree_bubble(leaf, (HuffmanCode){0});
+        bitstream_write_h_code(&bs, h_code);
+    }
+    bitstream_flush(&bs);
+
+    fclose(out_file);
+}
+
 void huff_encode_file(char *input_path, char *output_path)
 {
 #define N_CHARACTERS 256
-    FILE *in_file = fopen(input_path, "r");
     size_t characters[N_CHARACTERS] = {0};
     HuffmanNode *leaf_pointers[N_CHARACTERS] = {0};
 
-    while (!feof(in_file)) {
-        char c = fgetc(in_file);
+    FILE *in_file = fopen(input_path, "r");
+    char c;
+    while ((c = fgetc(in_file)) != EOF) {
         characters[(size_t)c] += 1;
     }
 
@@ -176,29 +271,10 @@ void huff_encode_file(char *input_path, char *output_path)
     }
 
     HuffmanNode *tree = h_tree_from(heap);
-    size_t needed = snprintf(NULL, 0, "%s.htree", input_path);
-    char *tree_file_path = malloc(needed);
-    sprintf(tree_file_path, "%s.htree", input_path);
-    FILE *tree_file = fopen(tree_file_path, "w");
-    h_tree_write(tree_file, tree, (HuffmanCode){0});
-    free(tree_file_path);
-    fclose(tree_file);
-
-    FILE *out_file = fopen(output_path, "w");
-    fseek(in_file, 0, SEEK_SET);
-    while (!feof(in_file)) {
-        char c = fgetc(in_file);
-        HuffmanNode *leaf = leaf_pointers[(int)c];
-        HuffmanCode h_code = h_tree_bubble(leaf, (HuffmanCode){0});
-        // char *code_str = h_code_to_string(h_code);
-        // fprintf(stdout, "%.2X:%s\n", c, code_str);
-        // free(code_str);
-        // write code to output
-    }
-
-    fclose(out_file);
-    fclose(in_file);
     b_heap_free(heap);
+    huff_write_tree_file(tree, input_path);
+    huff_write_encoded_file(leaf_pointers, output_path, in_file);
+    fclose(in_file);
 }
 
 int main()
