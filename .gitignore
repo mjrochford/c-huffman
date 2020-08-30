@@ -2,3 +2,10 @@
 *.bin
 build
 tags
+*.htree
+*.huff
+*.tar*
+
+*.txt
+!mobydick.txt
+!test.txt
