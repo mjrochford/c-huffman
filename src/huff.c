@@ -237,7 +237,6 @@ HuffmanNode *h_tree_from_file(HuffmanNode *parent, FILE *tree_file)
     node->parent = parent;
     if (c == '\0') {
         node->left = h_tree_from_file(node, tree_file);
-    } else {
         node->right = h_tree_from_file(node, tree_file);
     }
 
@@ -253,11 +252,34 @@ void huff_decode_file(char *input_path, char *output_path)
 
     HuffmanNode *tree = h_tree_from_file(NULL, tree_file);
     fclose(tree_file);
+
+    SMPRINFT(encoded_file_path, "%s.huff", input_path);
+    BitStreamReader *encoded_file = bitstream_reader_new(encoded_file_path);
+    FILE *out_file = fopen(output_path, "w");
+
+    HuffmanNode *node = tree;
+    int16_t b = bitstream_read_bit(encoded_file);
+    while (b >= 0) {
+        if (node->symbol != '\0') {
+            fputc(node->symbol, out_file);
+            node = tree;
+        }
+
+        if (b == 0) {
+            node = node->left;
+        } else {
+            node = node->right;
+        }
+        b = bitstream_read_bit(encoded_file);
+    }
+
+    bitstream_reader_close(encoded_file);
+    fclose(out_file);
 }
 
 int main()
 {
     huff_encode_file("mobydick.txt", "mobydick.txt.huff");
-    huff_decode_file("mobydick.txt", "mobydick.txt.2");
+    huff_decode_file("mobydick.txt", "mobydick.2.txt");
     // asdf
 }

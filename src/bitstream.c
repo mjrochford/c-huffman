@@ -86,7 +86,7 @@ int get_bot_bits(size_t data, size_t n_bits)
 
 int get_top_bits(size_t data, size_t n_bits, size_t offset)
 {
-    assert(offset > (8 - n_bits));
+    assert(offset >= n_bits);
     // 00000100 == data
     //    ^     == offset
     // 11111111 == 0xff

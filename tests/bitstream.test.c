@@ -58,6 +58,19 @@ void bitstream_test_write_data(char *test_file_path)
     c = fgetc(test_file);
     assert(c == 0x80); // 0x80 = 0b10000000
     fclose(test_file);
+
+    bs = bitstream_writer_new(test_file_path);
+    bitstream_write_data(bs, 0x2796, 18); // 0x2796 = 0b000010011110010110
+    bitstream_writer_close(bs, true);
+
+    test_file = fopen(test_file_path, "r"); // 00001001 11100101 10000000
+    c = fgetc(test_file);
+    assert(c == 0x09); //  0x09 = 0b00001001
+    c = fgetc(test_file);
+    assert(c == 0xE5); // 0xE5 = 0b11100101
+    c = fgetc(test_file);
+    assert(c == 0x80); // 0x80 = 0b10000000
+    fclose(test_file);
 }
 
 void bitstream_test_read_bit(char *test_file_path)
