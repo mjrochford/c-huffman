@@ -138,11 +138,14 @@ void bitstream_write_data(BitStreamWriter *bs, size_t data, u_int8_t offset)
     }
 }
 
-u_int8_t bitstream_read_bit(BitStreamReader *bs)
+int16_t bitstream_read_bit(BitStreamReader *bs)
 {
     if (bs->offset == 8 || bs->offset == 0) {
         char c;
-        read(bs->fd, &c, 1);
+        ssize_t read_status = read(bs->fd, &c, 1);
+        if (read_status == 0) {
+            return -1;
+        }
         bs->pending = c;
         bs->offset = 8;
     }

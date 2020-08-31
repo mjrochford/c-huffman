@@ -68,7 +68,7 @@ void bitstream_test_read_bit(char *test_file_path)
     fclose(test_file);
 
     BitStreamReader *bs = bitstream_reader_new(test_file_path);
-    u_int8_t b = bitstream_read_bit(bs);
+    int16_t b = bitstream_read_bit(bs);
     assert(b == 0);
     b = bitstream_read_bit(bs);
     assert(b == 0);
@@ -101,6 +101,9 @@ void bitstream_test_read_bit(char *test_file_path)
     assert(b == 1);
     b = bitstream_read_bit(bs);
     assert(b == 1);
+
+    b = bitstream_read_bit(bs);
+    assert(b < 0);
 }
 
 int main()

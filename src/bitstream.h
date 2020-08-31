@@ -12,4 +12,4 @@ void bitstream_flush(BitStreamWriter *bs);
 
 void bitstream_write_bit(BitStreamWriter *bs, u_int8_t bit);
 void bitstream_write_data(BitStreamWriter *bs, size_t data, u_int8_t offset);
-u_int8_t bitstream_read_bit(BitStreamReader *bs);
+int16_t bitstream_read_bit(BitStreamReader *bs);
