@@ -27,7 +27,8 @@ BitStream *bitstream_write_new(char *file_path)
     BitStream *self = malloc(sizeof(*self));
     self->pending = 0;
     self->offset = 8;
-    self->fd = open(file_path, O_WRONLY | O_CREAT);
+    mode_t permissions = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
+    self->fd = open(file_path, O_WRONLY | O_CREAT, permissions);
     if (self->fd < 0) {
         return NULL;
     }
@@ -36,7 +37,7 @@ BitStream *bitstream_write_new(char *file_path)
 
 void bitstream_flush(BitStream *bs)
 {
-    if (bs->offset == 0) {
+    if (bs->offset == 8) {
         return;
     }
 

@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "b_heap.h"
+#include "bitstream.h"
 
 #define SMPRINFT(str_name, format_str, ...)                                    \
     char *str_name;                                                            \
@@ -79,73 +80,6 @@ typedef struct HuffmanCode {
     unsigned long data;
     unsigned short offset;
 } HuffmanCode;
-
-typedef struct BitStream {
-    unsigned char pending;
-    unsigned char offset;
-    FILE *stream;
-} BitStream;
-
-int get_high_byte(HuffmanCode code)
-{
-    int shift = code.offset - 8;
-    if (shift >= 0) {
-        return (code.data & (0xFF << shift)) >> shift;
-    }
-    return -1;
-}
-
-void bitstream_flush(BitStream *bs)
-{
-    if (bs->offset == 0) {
-        return;
-    }
-
-    fputc(bs->pending, bs->stream);
-    bs->pending = 0;
-    bs->offset = 0;
-}
-
-void bitstream_write_h_code(BitStream *bs, HuffmanCode code)
-{
-    if (code.offset < bs->offset) {
-        // 00100000 == bs->pending
-        //    ^     == bs->offset
-        // 00000100 == code.data
-        //      ^   == code.offset
-        //      111 == 0xff >> (8 - code.offset) == bottom_bits_mask
-        //    111    == code.offset - bs->offset
-
-        bs->offset -= code.offset;
-        size_t bottom_bits_mask = 0xff >> (8 - code.offset);
-        bs->pending |= (code.data & bottom_bits_mask) << bs->offset;
-        code.offset = 0;
-    } else if (bs->offset > 0) {
-        // 00101000 == bs->pending
-        //      ^   == bs->offset
-        // 00000100 == code.data
-        //    ^     == code.offset
-        //      111 == 0xff >> (8 - bs->offset) == top_bits_mask
-        //    111   == code.offset - bs->offset
-
-        code.offset -= bs->offset;
-        size_t top_bits_mask = (0xff >> (8 - bs->offset)) << code.offset;
-        bs->pending |= (code.data & top_bits_mask) >> code.offset;
-        bitstream_flush(bs);
-    }
-
-    while (code.offset >= 8) {
-        int high_byte = get_high_byte(code);
-        assert(high_byte >= 0 && high_byte <= 255);
-        fputc(high_byte, bs->stream);
-        code.offset -= 8;
-    }
-
-    if (code.offset > 0) {
-        bs->offset = 8 - code.offset;
-        bs->pending = (code.data & (0xFF >> bs->offset)) << bs->offset;
-    }
-}
 
 char *h_code_to_string(HuffmanCode self)
 {
@@ -251,18 +185,15 @@ void huff_write_tree_file(HuffmanNode *tree, char *input_path)
 void huff_write_encoded_file(HuffmanNode **leaf_pointers, char *output_path,
                              FILE *in_file)
 {
-    FILE *out_file = fopen(output_path, "w");
-    BitStream bs = {.stream = out_file};
+    BitStream *bs = bitstream_write_new(output_path);
     fseek(in_file, 0, SEEK_SET);
     char c;
     while ((c = fgetc(in_file)) != EOF) {
         HuffmanNode *leaf = leaf_pointers[(int)c];
         HuffmanCode h_code = h_tree_bubble(leaf, (HuffmanCode){0});
-        bitstream_write_h_code(&bs, h_code);
+        bitstream_write_data(bs, h_code.data, h_code.offset);
     }
-    bitstream_flush(&bs);
-
-    fclose(out_file);
+    bitstream_close(bs, true);
 }
 
 void huff_encode_file(char *input_path, char *output_path)
