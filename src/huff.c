@@ -15,14 +15,6 @@
         sprintf(str_name, format_str, __VA_ARGS__);                            \
     } while (0)
 
-char *s_append(char *str, char *append)
-{
-    size_t needed = snprintf(NULL, 0, "%s%s", str, append);
-    char *tree_file_path = malloc(needed);
-    sprintf(tree_file_path, "%s%s", str, append);
-    return tree_file_path;
-}
-
 typedef struct HuffmanNode {
     char symbol;
     size_t freq;
@@ -281,5 +273,4 @@ int main()
 {
     huff_encode_file("mobydick.txt", "mobydick.txt.huff");
     huff_decode_file("mobydick.txt", "mobydick.2.txt");
-    // asdf
 }
