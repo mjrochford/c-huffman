@@ -1,8 +1,26 @@
 #include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "b_heap.h"
+
+#define SMPRINFT(str_name, format_str, ...)                                    \
+    char *str_name;                                                            \
+    do {                                                                       \
+        size_t needed = snprintf(NULL, 0, format_str, __VA_ARGS__);            \
+        str_name = malloc(needed);                                             \
+        sprintf(str_name, format_str, __VA_ARGS__);                            \
+    } while (0)
+
+char *s_append(char *str, char *append)
+{
+    size_t needed = snprintf(NULL, 0, "%s%s", str, append);
+    char *tree_file_path = malloc(needed);
+    sprintf(tree_file_path, "%s%s", str, append);
+    return tree_file_path;
+}
 
 typedef struct HuffmanNode {
     char symbol;
@@ -139,20 +157,14 @@ char *h_code_to_string(HuffmanCode self)
     return string;
 }
 
-void h_tree_write(FILE *stream, HuffmanNode *root, HuffmanCode h_code)
+void h_tree_write(FILE *stream, HuffmanNode *root)
 {
-    if (root->symbol != '\0') {
-        char *code_str = h_code_to_string(h_code);
-        fprintf(stream, "%.2X:%s\n", root->symbol, code_str);
-        free(code_str);
-    }
+    fprintf(stream, "%c", root->symbol);
     if (root->left) {
-        h_tree_write(stream, root->left,
-                     (HuffmanCode){h_code.data << 1, h_code.offset + 1});
+        h_tree_write(stream, root->left);
     }
     if (root->right) {
-        h_tree_write(stream, root->right,
-                     (HuffmanCode){h_code.data << 1 | 1, h_code.offset + 1});
+        h_tree_write(stream, root->right);
     }
 }
 
@@ -211,7 +223,7 @@ HuffmanCode h_tree_bubble(HuffmanNode *leaf, HuffmanCode h_code)
     return (HuffmanCode){0};
 }
 
-HuffmanNode *h_tree_from(BHeap *heap)
+HuffmanNode *h_tree_from_heap(BHeap *heap)
 {
     HuffmanNode *tree = b_heap_pop(heap);
     HuffmanNode *node = b_heap_pop(heap);
@@ -229,11 +241,9 @@ HuffmanNode *h_tree_from(BHeap *heap)
 
 void huff_write_tree_file(HuffmanNode *tree, char *input_path)
 {
-    size_t needed = snprintf(NULL, 0, "%s.htree", input_path);
-    char *tree_file_path = malloc(needed);
-    sprintf(tree_file_path, "%s.htree", input_path);
+    SMPRINFT(tree_file_path, "%s.htree", input_path);
     FILE *tree_file = fopen(tree_file_path, "w");
-    h_tree_write(tree_file, tree, (HuffmanCode){0});
+    h_tree_write(tree_file, tree);
     free(tree_file_path);
     fclose(tree_file);
 }
@@ -276,15 +286,47 @@ void huff_encode_file(char *input_path, char *output_path)
         }
     }
 
-    HuffmanNode *tree = h_tree_from(heap);
+    HuffmanNode *tree = h_tree_from_heap(heap);
     b_heap_free(heap);
     huff_write_tree_file(tree, input_path);
     huff_write_encoded_file(leaf_pointers, output_path, in_file);
     fclose(in_file);
 }
 
+HuffmanNode *h_tree_from_file(HuffmanNode *parent, FILE *tree_file)
+{
+    char c = fgetc(tree_file);
+    if (c == EOF) {
+        return NULL;
+    }
+
+    HuffmanNode *node = h_leaf_new(c, 0);
+    node->left = NULL;
+    node->right = NULL;
+    node->parent = parent;
+    if (c == '\0') {
+        node->left = h_tree_from_file(node, tree_file);
+    } else {
+        node->right = h_tree_from_file(node, tree_file);
+    }
+
+    return node;
+}
+
+void huff_decode_file(char *input_path, char *output_path)
+{
+    SMPRINFT(tree_file_path, "%s.htree", input_path);
+    FILE *tree_file = fopen(tree_file_path, "r");
+    free(tree_file_path);
+    tree_file_path = NULL;
+
+    HuffmanNode *tree = h_tree_from_file(NULL, tree_file);
+    fclose(tree_file);
+}
+
 int main()
 {
     huff_encode_file("mobydick.txt", "mobydick.txt.huff");
+    huff_decode_file("mobydick.txt", "mobydick.txt.2");
     // asdf
 }
