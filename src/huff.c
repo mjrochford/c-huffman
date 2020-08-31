@@ -147,10 +147,12 @@ void h_tree_write(FILE *stream, HuffmanNode *root, HuffmanCode h_code)
         free(code_str);
     }
     if (root->left) {
-        h_tree_write(stream, root->left, (HuffmanCode){h_code.data << 1, h_code.offset + 1});
+        h_tree_write(stream, root->left,
+                     (HuffmanCode){h_code.data << 1, h_code.offset + 1});
     }
     if (root->right) {
-        h_tree_write(stream, root->right, (HuffmanCode){h_code.data << 1 | 1, h_code.offset + 1});
+        h_tree_write(stream, root->right,
+                     (HuffmanCode){h_code.data << 1 | 1, h_code.offset + 1});
     }
 }
 
@@ -159,14 +161,15 @@ HuffmanCode h_tree_search(HuffmanNode *node, char c, HuffmanCode h_code)
     if (node->symbol == c) {
         return h_code;
     } else if (node->left) {
-        HuffmanCode r_code =
-            h_tree_search(node->left, c, (HuffmanCode){h_code.data << 1, h_code.offset + 1});
+        HuffmanCode r_code = h_tree_search(
+            node->left, c, (HuffmanCode){h_code.data << 1, h_code.offset + 1});
         if (r_code.offset != 0) {
             return r_code;
         }
     } else if (node->right) {
-        HuffmanCode r_code =
-            h_tree_search(node->right, c, (HuffmanCode){h_code.data << 1 | 1, h_code.offset + 1});
+        HuffmanCode r_code = h_tree_search(
+            node->right, c,
+            (HuffmanCode){h_code.data << 1 | 1, h_code.offset + 1});
         if (r_code.offset != 0) {
             return r_code;
         }
@@ -191,14 +194,15 @@ HuffmanCode h_tree_bubble(HuffmanNode *leaf, HuffmanCode h_code)
         h_code.data = reverse_bits(h_code.data, h_code.offset);
         return h_code;
     } else if (leaf->parent->left == leaf) {
-        HuffmanCode r_code =
-            h_tree_bubble(leaf->parent, (HuffmanCode){h_code.data << 1, h_code.offset + 1});
+        HuffmanCode r_code = h_tree_bubble(
+            leaf->parent, (HuffmanCode){h_code.data << 1, h_code.offset + 1});
         if (r_code.offset != 0) {
             return r_code;
         }
     } else if (leaf->parent->right == leaf) {
         HuffmanCode r_code =
-            h_tree_bubble(leaf->parent, (HuffmanCode){h_code.data << 1 | 1, h_code.offset + 1});
+            h_tree_bubble(leaf->parent, (HuffmanCode){h_code.data << 1 | 1,
+                                                      h_code.offset + 1});
         if (r_code.offset != 0) {
             return r_code;
         }
@@ -212,8 +216,9 @@ HuffmanNode *h_tree_from(BHeap *heap)
     HuffmanNode *tree = b_heap_pop(heap);
     HuffmanNode *node = b_heap_pop(heap);
     while (node != NULL && tree != NULL) {
-        HuffmanNode *branch =
-            tree->freq > node->freq ? h_branch_new(tree, node) : h_branch_new(node, tree);
+        HuffmanNode *branch = tree->freq > node->freq
+                                  ? h_branch_new(tree, node)
+                                  : h_branch_new(node, tree);
 
         b_heap_push(heap, branch);
         tree = b_heap_pop(heap);
@@ -233,7 +238,8 @@ void huff_write_tree_file(HuffmanNode *tree, char *input_path)
     fclose(tree_file);
 }
 
-void huff_write_encoded_file(HuffmanNode **leaf_pointers, char *output_path, FILE *in_file)
+void huff_write_encoded_file(HuffmanNode **leaf_pointers, char *output_path,
+                             FILE *in_file)
 {
     FILE *out_file = fopen(output_path, "w");
     BitStream bs = {.stream = out_file};
