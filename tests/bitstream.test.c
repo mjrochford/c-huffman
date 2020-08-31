@@ -64,6 +64,7 @@ void bitstream_test_read_bit(char *test_file_path)
 {
     FILE *test_file = fopen(test_file_path, "w");
     fputc(42, test_file); // 42 = 0b00101010
+    fputc(27, test_file); // 27 = 0b00011011
     fclose(test_file);
 
     BitStreamReader *bs = bitstream_reader_new(test_file_path);
@@ -83,6 +84,23 @@ void bitstream_test_read_bit(char *test_file_path)
     assert(b == 1);
     b = bitstream_read_bit(bs);
     assert(b == 0);
+
+    b = bitstream_read_bit(bs);
+    assert(b == 0);
+    b = bitstream_read_bit(bs);
+    assert(b == 0);
+    b = bitstream_read_bit(bs);
+    assert(b == 0);
+    b = bitstream_read_bit(bs);
+    assert(b == 1);
+    b = bitstream_read_bit(bs);
+    assert(b == 1);
+    b = bitstream_read_bit(bs);
+    assert(b == 0);
+    b = bitstream_read_bit(bs);
+    assert(b == 1);
+    b = bitstream_read_bit(bs);
+    assert(b == 1);
 }
 
 int main()
