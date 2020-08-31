@@ -9,10 +9,12 @@ typedef struct BitStream {
     u_int8_t offset;
     int fd;
 } BitStream;
+typedef BitStream BitStreamWriter;
+typedef BitStream BitStreamReader;
 
-BitStream *bitstream_read_new(char *file_path)
+BitStreamReader *bitstream_reader_new(char *file_path)
 {
-    BitStream *self = malloc(sizeof(*self));
+    BitStreamReader *self = malloc(sizeof(*self));
     self->pending = 0;
     self->offset = 8;
     self->fd = open(file_path, O_RDONLY);
@@ -22,9 +24,9 @@ BitStream *bitstream_read_new(char *file_path)
     return self;
 }
 
-BitStream *bitstream_write_new(char *file_path)
+BitStreamWriter *bitstream_writer_new(char *file_path)
 {
-    BitStream *self = malloc(sizeof(*self));
+    BitStreamWriter *self = malloc(sizeof(*self));
     self->pending = 0;
     self->offset = 8;
     mode_t permissions = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
@@ -46,7 +48,13 @@ void bitstream_flush(BitStream *bs)
     bs->offset = 8;
 }
 
-void bitstream_close(BitStream *self, bool flush)
+void bitstream_reader_close(BitStreamReader *self)
+{
+    close(self->fd);
+    free(self);
+}
+
+void bitstream_writer_close(BitStreamWriter *self, bool flush)
 {
     if (flush) {
         bitstream_flush(self);
@@ -90,7 +98,7 @@ int get_top_bits(size_t data, size_t n_bits, size_t offset)
     return (top_bits_mask & data) >> offset;
 }
 
-void bitstream_write_bit(BitStream *bs, u_int8_t bit)
+void bitstream_write_bit(BitStreamWriter *bs, u_int8_t bit)
 {
     // 00000001 bit
     // xxxx0000 bs->pending
@@ -104,7 +112,7 @@ void bitstream_write_bit(BitStream *bs, u_int8_t bit)
     }
 }
 
-void bitstream_write_data(BitStream *bs, size_t data, u_int8_t offset)
+void bitstream_write_data(BitStreamWriter *bs, size_t data, u_int8_t offset)
 {
     if (offset < bs->offset) {
         bs->offset -= offset;
@@ -128,4 +136,15 @@ void bitstream_write_data(BitStream *bs, size_t data, u_int8_t offset)
         bs->offset = 8 - offset;
         bs->pending = (data & (0xFF >> bs->offset)) << bs->offset;
     }
+}
+
+u_int8_t bitstream_read_bit(BitStreamReader *bs)
+{
+    if (bs->offset == 8) {
+        char c;
+        read(bs->fd, &c, 1);
+        bs->pending = c;
+    }
+
+    return (bs->pending & (0x1 << --bs->offset)) >> bs->offset;
 }
