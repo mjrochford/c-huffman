@@ -6,6 +6,7 @@
 
 #include "b_heap.h"
 #include "bitstream.h"
+#include "h_tree.h"
 
 #define SMPRINFT(str_name, format_str, ...)                                    \
     char *str_name;                                                            \
@@ -15,146 +16,12 @@
         sprintf(str_name, format_str, __VA_ARGS__);                            \
     } while (0)
 
-typedef struct HuffmanNode {
-    char symbol;
-    size_t freq;
-    struct HuffmanNode *parent;
-    struct HuffmanNode *left;
-    struct HuffmanNode *right;
-} HuffmanNode;
-
-void h_node_free(void *self)
-{
-    HuffmanNode *me = self;
-    if (me->right) {
-        h_node_free(me->right);
-    }
-    if (me->left) {
-        h_node_free(me->right);
-    }
-    free(me);
-}
-
-HuffmanNode *h_branch_new(HuffmanNode *leaf_l, HuffmanNode *leaf_r)
-{
-    HuffmanNode *self = malloc(sizeof(*self));
-    self->freq = leaf_l->freq + leaf_r->freq;
-    self->symbol = '\0';
-    self->parent = NULL;
-    self->left = leaf_l;
-    self->right = leaf_r;
-    self->left->parent = self;
-    self->right->parent = self;
-    return self;
-}
-
-HuffmanNode *h_leaf_new(char sym, size_t freq)
-{
-    HuffmanNode *self = malloc(sizeof(*self));
-    self->symbol = sym;
-    self->freq = freq;
-    return self;
-}
-
-int h_node_compare(void *hnode_a, void *hnode_b)
-{
-    int diff = ((HuffmanNode *)hnode_a)->freq - ((HuffmanNode *)hnode_b)->freq;
-    return -diff;
-}
-
-void h_node_print(void *node)
-{
-    HuffmanNode *h_node = node;
-    printf("0x%.2X -> %li", h_node->symbol, h_node->freq);
-}
-
-typedef struct HuffmanCode {
-    unsigned long data;
-    unsigned short offset;
-} HuffmanCode;
-
-char *h_code_to_string(HuffmanCode self)
-{
-    char *string = malloc(sizeof(*string) * (self.offset + 1));
-    for (int i = self.offset - 1; i >= 0; i--) {
-        string[self.offset - 1 - i] = self.data & (1 << i) ? '1' : '0';
-    }
-    string[self.offset] = '\0';
-    return string;
-}
-
-void h_tree_write(FILE *stream, HuffmanNode *root)
-{
-    fprintf(stream, "%c", root->symbol);
-    if (root->left) {
-        h_tree_write(stream, root->left);
-    }
-    if (root->right) {
-        h_tree_write(stream, root->right);
-    }
-}
-
-HuffmanCode h_tree_search(HuffmanNode *node, char c, HuffmanCode h_code)
-{
-    if (node->symbol == c) {
-        return h_code;
-    } else if (node->left) {
-        HuffmanCode r_code = h_tree_search(
-            node->left, c, (HuffmanCode){h_code.data << 1, h_code.offset + 1});
-        if (r_code.offset != 0) {
-            return r_code;
-        }
-    } else if (node->right) {
-        HuffmanCode r_code = h_tree_search(
-            node->right, c,
-            (HuffmanCode){h_code.data << 1 | 1, h_code.offset + 1});
-        if (r_code.offset != 0) {
-            return r_code;
-        }
-    }
-
-    return (HuffmanCode){0};
-}
-
-size_t reverse_bits(size_t num, size_t n_bits)
-{
-    size_t reverse_num = 0;
-    for (size_t i = 0; i < n_bits; i++) {
-        if ((num & (1 << i)))
-            reverse_num |= 1 << ((n_bits - 1) - i);
-    }
-    return reverse_num;
-}
-
-HuffmanCode h_tree_bubble(HuffmanNode *leaf, HuffmanCode h_code)
-{
-    if (leaf == NULL || leaf->parent == NULL) {
-        h_code.data = reverse_bits(h_code.data, h_code.offset);
-        return h_code;
-    } else if (leaf->parent->left == leaf) {
-        HuffmanCode r_code = h_tree_bubble(
-            leaf->parent, (HuffmanCode){h_code.data << 1, h_code.offset + 1});
-        if (r_code.offset != 0) {
-            return r_code;
-        }
-    } else if (leaf->parent->right == leaf) {
-        HuffmanCode r_code =
-            h_tree_bubble(leaf->parent, (HuffmanCode){h_code.data << 1 | 1,
-                                                      h_code.offset + 1});
-        if (r_code.offset != 0) {
-            return r_code;
-        }
-    }
-
-    return (HuffmanCode){0};
-}
-
 HuffmanNode *h_tree_from_heap(BHeap *heap)
 {
     HuffmanNode *tree = b_heap_pop(heap);
     HuffmanNode *node = b_heap_pop(heap);
     while (node != NULL && tree != NULL) {
-        HuffmanNode *branch = tree->freq > node->freq
+        HuffmanNode *branch = h_node_compare(tree, node) < 0
                                   ? h_branch_new(tree, node)
                                   : h_branch_new(node, tree);
 
@@ -169,8 +36,10 @@ void huff_write_tree_file(HuffmanNode *tree, char *input_path)
 {
     SMPRINFT(tree_file_path, "%s.htree", input_path);
     FILE *tree_file = fopen(tree_file_path, "w");
-    h_tree_write(tree_file, tree);
     free(tree_file_path);
+
+    h_tree_write(tree_file, tree);
+
     fclose(tree_file);
 }
 
@@ -213,26 +82,8 @@ void huff_encode_file(char *input_path, char *output_path)
     b_heap_free(heap);
     huff_write_tree_file(tree, input_path);
     huff_write_encoded_file(leaf_pointers, output_path, in_file);
+    h_node_free(tree);
     fclose(in_file);
-}
-
-HuffmanNode *h_tree_from_file(HuffmanNode *parent, FILE *tree_file)
-{
-    char c = fgetc(tree_file);
-    if (c == EOF) {
-        return NULL;
-    }
-
-    HuffmanNode *node = h_leaf_new(c, 0);
-    node->left = NULL;
-    node->right = NULL;
-    node->parent = parent;
-    if (c == '\0') {
-        node->left = h_tree_from_file(node, tree_file);
-        node->right = h_tree_from_file(node, tree_file);
-    }
-
-    return node;
 }
 
 void huff_decode_file(char *input_path, char *output_path)
@@ -248,29 +99,21 @@ void huff_decode_file(char *input_path, char *output_path)
     SMPRINFT(encoded_file_path, "%s.huff", input_path);
     BitStreamReader *encoded_file = bitstream_reader_new(encoded_file_path);
     FILE *out_file = fopen(output_path, "w");
-
-    HuffmanNode *node = tree;
-    int16_t b = bitstream_read_bit(encoded_file);
-    while (b >= 0) {
-        if (node->symbol != '\0') {
-            fputc(node->symbol, out_file);
-            node = tree;
-        }
-
-        if (b == 0) {
-            node = node->left;
-        } else {
-            node = node->right;
-        }
-        b = bitstream_read_bit(encoded_file);
+    char c;
+    while (EOF != (c = h_tree_read_encoded_char(tree, encoded_file))) {
+        fputc(c, out_file);
     }
 
+    h_node_free(tree);
     bitstream_reader_close(encoded_file);
     fclose(out_file);
 }
 
 int main()
 {
-    huff_encode_file("mobydick.txt", "mobydick.txt.huff");
-    huff_decode_file("mobydick.txt", "mobydick.2.txt");
+    // huff_encode_file("mobydick.txt", "mobydick.txt.huff");
+    // huff_decode_file("mobydick.txt", "mobydick.2.txt");
+
+    huff_encode_file("test.txt", "test.txt.huff");
+    huff_decode_file("test.txt", "test.2.txt");
 }

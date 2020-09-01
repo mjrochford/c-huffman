@@ -2,7 +2,8 @@ project('huffc', 'c',
   version : '0.1',
   default_options : ['warning_level=3'])
 
-src = ['src/huff.c', 'src/huff.h',
+src = ['src/huff.c',
+       'src/h_tree.c', 'src/h_tree.h',
        'src/b_heap.c', 'src/b_heap.h',
        'src/bitstream.c', 'src/bitstream.h']
 deps = []
