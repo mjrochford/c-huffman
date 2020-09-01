@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 typedef struct HuffmanNode {
-    char symbol;
+    int symbol;
     size_t freq;
     struct HuffmanNode *parent;
     struct HuffmanNode *left;
@@ -18,14 +18,15 @@ typedef struct HuffmanCode {
 
 int h_node_compare(void *hnode_a, void *hnode_b)
 {
-    int diff = ((HuffmanNode *)hnode_a)->freq - ((HuffmanNode *)hnode_b)->freq;
+    int diff =
+        (int)(((HuffmanNode *)hnode_a)->freq - ((HuffmanNode *)hnode_b)->freq);
     return -diff;
 }
 
 void h_node_print(void *node)
 {
     HuffmanNode *h_node = node;
-    printf("0x%.2X -> %li", h_node->symbol, h_node->freq);
+    printf("0x%.2X -> %lu", h_node->symbol, h_node->freq);
 }
 
 void h_node_free(void *self)
@@ -53,7 +54,7 @@ HuffmanNode *h_branch_new(HuffmanNode *leaf_l, HuffmanNode *leaf_r)
     return self;
 }
 
-HuffmanNode *h_leaf_new(char sym, size_t freq)
+HuffmanNode *h_leaf_new(int sym, size_t freq)
 {
     HuffmanNode *self = malloc(sizeof(*self));
     self->symbol = sym;
@@ -76,7 +77,9 @@ HuffmanCode h_tree_search(HuffmanNode *node, char c, HuffmanCode h_code)
 {
     if (node->symbol == c) {
         return h_code;
-    } else if (node->left) {
+    }
+
+    if (node->left) {
         HuffmanCode r_code = h_tree_search(
             node->left, c, (HuffmanCode){h_code.data << 1, h_code.offset + 1});
         if (r_code.offset != 0) {
@@ -98,8 +101,9 @@ size_t reverse_bits(size_t num, size_t n_bits)
 {
     size_t reverse_num = 0;
     for (size_t i = 0; i < n_bits; i++) {
-        if ((num & (1 << i)))
+        if ((num & (1 << i))) {
             reverse_num |= 1 << ((n_bits - 1) - i);
+        }
     }
     return reverse_num;
 }
@@ -109,7 +113,9 @@ HuffmanCode h_tree_bubble(HuffmanNode *leaf, HuffmanCode h_code)
     if (leaf == NULL || leaf->parent == NULL) {
         h_code.data = reverse_bits(h_code.data, h_code.offset);
         return h_code;
-    } else if (leaf->parent->left == leaf) {
+    }
+
+    if (leaf->parent->left == leaf) {
         HuffmanCode r_code = h_tree_bubble(
             leaf->parent, (HuffmanCode){h_code.data << 1, h_code.offset + 1});
         if (r_code.offset != 0) {
@@ -129,7 +135,7 @@ HuffmanCode h_tree_bubble(HuffmanNode *leaf, HuffmanCode h_code)
 
 HuffmanNode *h_tree_from_file(HuffmanNode *parent, FILE *tree_file)
 {
-    char c = fgetc(tree_file);
+    int c = fgetc(tree_file);
     if (c == EOF) {
         return NULL;
     }
@@ -146,7 +152,7 @@ HuffmanNode *h_tree_from_file(HuffmanNode *parent, FILE *tree_file)
     return node;
 }
 
-char h_tree_read_encoded_char(HuffmanNode *self, BitStreamReader *encoded_file)
+int h_tree_read_encoded_char(HuffmanNode *self, BitStreamReader *encoded_file)
 {
     HuffmanNode *node = self;
     int16_t b = 0;

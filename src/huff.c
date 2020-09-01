@@ -48,7 +48,7 @@ void huff_write_encoded_file(HuffmanNode **leaf_pointers, char *output_path,
 {
     BitStreamWriter *bs = bitstream_writer_new(output_path);
     fseek(in_file, 0, SEEK_SET);
-    char c;
+    int c;
     while ((c = fgetc(in_file)) != EOF) {
         HuffmanNode *leaf = leaf_pointers[(int)c];
         HuffmanCode h_code = h_tree_bubble(leaf, (HuffmanCode){0});
@@ -64,7 +64,7 @@ void huff_encode_file(char *input_path, char *output_path)
     HuffmanNode *leaf_pointers[N_CHARACTERS] = {0};
 
     FILE *in_file = fopen(input_path, "r");
-    char c;
+    int c;
     while ((c = fgetc(in_file)) != EOF) {
         characters[(size_t)c] += 1;
     }

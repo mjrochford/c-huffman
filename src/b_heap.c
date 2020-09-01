@@ -2,11 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define SWAP(x, y, T)                                                                              \
-    do {                                                                                           \
-        T __TEMP = x;                                                                              \
-        x = y;                                                                                     \
-        y = __TEMP;                                                                                \
+#define SWAP(x, y, T)                                                          \
+    do {                                                                       \
+        T __TEMP = (x);                                                        \
+        (x) = y;                                                               \
+        (y) = __TEMP;                                                          \
     } while (0)
 
 typedef int (*BHeapNodeCompareFunc)(void *a, void *b);
@@ -22,10 +22,12 @@ typedef struct {
     BHeapNodeFreeFunc free_node;
 } BHeap;
 
+#define BHEAP_DEFAULT_CAPACITY 1024
+
 BHeap *b_heap_new(BHeapNodeCompareFunc cmp)
 {
     BHeap *self = malloc(sizeof(*self));
-    self->capacity = 50;
+    self->capacity = BHEAP_DEFAULT_CAPACITY;
     self->data = malloc(sizeof(*self->data) * self->capacity);
     self->compare_nodes = cmp;
     self->free_node = free;
@@ -69,10 +71,12 @@ void b_heap_sift_down(BHeap *self, size_t index)
     size_t left_i = index * 2 + 1;
     size_t right_i = index * 2 + 2;
 
-    if (left_i < self->size && self->compare_nodes(self->data[left_i], self->data[larg_i]) > 0) {
+    if (left_i < self->size &&
+        self->compare_nodes(self->data[left_i], self->data[larg_i]) > 0) {
         larg_i = left_i;
     }
-    if (right_i < self->size && self->compare_nodes(self->data[right_i], self->data[larg_i]) > 0) {
+    if (right_i < self->size &&
+        self->compare_nodes(self->data[right_i], self->data[larg_i]) > 0) {
         larg_i = right_i;
     }
 
