@@ -27,13 +27,20 @@ BitStreamReader *bitstream_reader_new(char *file_path)
     return self;
 }
 
+BitStreamReader *bitstream_reader_new_offset(char *file_path, size_t offset)
+{
+    BitStreamReader *self = bitstream_reader_new(file_path);
+    lseek(self->fd, offset, SEEK_SET);
+    return self;
+}
+
 BitStreamWriter *bitstream_writer_new(char *file_path)
 {
     BitStreamWriter *self = malloc(sizeof(*self));
     self->pending = 0;
     self->offset = BITSTREAM_BUFFER_SIZE;
     mode_t permissions = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
-    self->fd = open(file_path, O_WRONLY | O_CREAT, permissions);
+    self->fd = open(file_path, O_WRONLY | O_CREAT | O_APPEND, permissions);
     if (self->fd < 0) {
         return NULL;
     }

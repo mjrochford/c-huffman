@@ -12,10 +12,13 @@ int h_node_compare(void *hnode_a, void *hnode_b);
 void h_node_print(void *node);
 void h_node_free(void *self);
 HuffmanNode *h_branch_new(HuffmanNode *leaf_l, HuffmanNode *leaf_r);
-HuffmanNode *h_leaf_new(char sym, size_t freq);
+HuffmanNode *h_leaf_new(int sym, size_t freq);
+size_t h_tree_size(HuffmanNode *root);
+
 void h_tree_write(FILE *stream, HuffmanNode *root);
-HuffmanCode h_tree_search(HuffmanNode *node, char c, HuffmanCode h_code);
+HuffmanCode h_tree_search(HuffmanNode *node, int c, HuffmanCode h_code);
 size_t reverse_bits(size_t num, size_t n_bits);
 HuffmanCode h_tree_bubble(HuffmanNode *leaf, HuffmanCode h_code);
 HuffmanNode *h_tree_from_file(HuffmanNode *parent, FILE *tree_file);
-char h_tree_read_encoded_char(HuffmanNode *self, BitStreamReader *bs);
+HuffmanNode *h_tree_from_buffer(char buffer[], size_t n_nodes);
+int h_tree_read_encoded_char(HuffmanNode *self, BitStreamReader *bs);

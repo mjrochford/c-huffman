@@ -5,6 +5,7 @@
 typedef struct BitStream_s BitStreamWriter;
 typedef struct BitStream_s BitStreamReader;
 BitStreamReader *bitstream_reader_new(char *file_path);
+BitStreamReader *bitstream_reader_new_offset(char *file_path, size_t offset);
 BitStreamWriter *bitstream_writer_new(char *file_path);
 void bitstream_reader_close(BitStreamReader *self);
 void bitstream_writer_close(BitStreamWriter *self, bool flush);

@@ -27,6 +27,7 @@ typedef struct {
 BHeap *b_heap_new(BHeapNodeCompareFunc cmp)
 {
     BHeap *self = malloc(sizeof(*self));
+    self->size = 0;
     self->capacity = BHEAP_DEFAULT_CAPACITY;
     self->data = malloc(sizeof(*self->data) * self->capacity);
     self->compare_nodes = cmp;

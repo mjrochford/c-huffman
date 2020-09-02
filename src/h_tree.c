@@ -62,6 +62,20 @@ HuffmanNode *h_leaf_new(int sym, size_t freq)
     return self;
 }
 
+size_t h_tree_size(HuffmanNode *root)
+{
+    size_t count = 1;
+
+    if (root->left) {
+        count += h_tree_size(root->left);
+    }
+    if (root->right) {
+        count += h_tree_size(root->right);
+    }
+
+    return count;
+}
+
 void h_tree_write(FILE *stream, HuffmanNode *root)
 {
     fprintf(stream, "%c", root->symbol);
@@ -73,7 +87,7 @@ void h_tree_write(FILE *stream, HuffmanNode *root)
     }
 }
 
-HuffmanCode h_tree_search(HuffmanNode *node, char c, HuffmanCode h_code)
+HuffmanCode h_tree_search(HuffmanNode *node, int c, HuffmanCode h_code)
 {
     if (node->symbol == c) {
         return h_code;
@@ -150,6 +164,42 @@ HuffmanNode *h_tree_from_file(HuffmanNode *parent, FILE *tree_file)
     }
 
     return node;
+}
+
+struct CharStream {
+    const char *buffer;
+    size_t index;
+    size_t length;
+};
+
+HuffmanNode *h_tree_from_stream(struct CharStream *stream, HuffmanNode *parent)
+{
+    char c = stream->buffer[stream->index];
+    stream->index++;
+    if (stream->index - stream->length < 0) {
+        return NULL;
+    }
+
+    HuffmanNode *node = h_leaf_new(c, 0);
+    node->left = NULL;
+    node->right = NULL;
+    node->parent = parent;
+    if (c == '\0') {
+        node->left = h_tree_from_stream(stream, node);
+        node->right = h_tree_from_stream(stream, node);
+    }
+
+    return node;
+}
+
+HuffmanNode *h_tree_from_buffer(const char *buffer, size_t n_nodes)
+{
+    struct CharStream stream = {
+        .buffer = buffer,
+        .index = 0,
+        .length = n_nodes,
+    };
+    return h_tree_from_stream(&stream, NULL);
 }
 
 int h_tree_read_encoded_char(HuffmanNode *self, BitStreamReader *encoded_file)
