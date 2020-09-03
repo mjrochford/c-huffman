@@ -5,6 +5,7 @@ tags
 *.htree
 *.huff
 *.tar*
+callgrind*
 
 *.txt
 !mobydick.txt

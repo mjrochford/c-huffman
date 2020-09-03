@@ -9,7 +9,6 @@ src = ['src/huff.c',
 deps = []
 
 huff = executable('huff', sources: src, dependencies: deps)
-
 bitstream_test = executable('bitstream_test',
                             sources: ['tests/bitstream.test.c',
                                       'src/bitstream.c',

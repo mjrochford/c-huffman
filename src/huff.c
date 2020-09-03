@@ -8,7 +8,7 @@
 #include "bitstream.h"
 #include "h_tree.h"
 
-HuffmanNode *h_tree_from_heap(BHeap *heap)
+HuffmanNode *huff_tree_from_heap(BHeap *heap)
 {
     HuffmanNode *tree = b_heap_pop(heap);
     HuffmanNode *node = b_heap_pop(heap);
@@ -27,33 +27,28 @@ HuffmanNode *h_tree_from_heap(BHeap *heap)
 void huff_write_tree_to_file(HuffmanNode *tree, char *out_file_path)
 {
     FILE *out_file = fopen(out_file_path, "w");
-    size_t n_nodes = h_tree_size(tree);
-    fwrite(&n_nodes, sizeof(n_nodes), 1, out_file);
     h_tree_write(out_file, tree);
     fclose(out_file);
 }
 
-void huff_write_codes_to_file(HuffmanNode **leaf_pointers, char *out_path,
+void huff_write_codes_to_file(HuffmanCode codes[], char *out_path,
                               char *in_path)
 {
     FILE *in_file = fopen(in_path, "r");
     BitStreamWriter *bs = bitstream_writer_new(out_path);
     int c;
     while ((c = fgetc(in_file)) != EOF) {
-        HuffmanNode *leaf = leaf_pointers[(int)c];
-        HuffmanCode h_code = h_tree_bubble(leaf, (HuffmanCode){0});
+        HuffmanCode h_code = codes[c];
         bitstream_write_data(bs, h_code.data, h_code.offset);
     }
     fclose(in_file);
     bitstream_writer_close(bs, true);
 }
 
-void huff_encode_file(char *input_path, char *output_path)
-{
 #define N_CHARACTERS 256
-    size_t characters[N_CHARACTERS] = {0};
-    HuffmanNode *leaf_pointers[N_CHARACTERS] = {0};
-
+BHeap *huff_create_node_heap(char *input_path, int *characters,
+                             HuffmanNode **leafs)
+{
     FILE *in_file = fopen(input_path, "r");
     int c;
     while ((c = fgetc(in_file)) != EOF) {
@@ -65,16 +60,29 @@ void huff_encode_file(char *input_path, char *output_path)
     for (size_t i = 0; i < N_CHARACTERS; i++) {
         if (characters[i] > 0) {
             HuffmanNode *leaf = h_leaf_new((char)i, characters[i]);
-            leaf_pointers[i] = leaf;
+            leafs[i] = leaf;
             b_heap_push(heap, leaf);
         }
     }
+    return heap;
+}
 
-    HuffmanNode *tree = h_tree_from_heap(heap);
+void huff_encode_file(char *input_path, char *output_path)
+{
+    int characters[N_CHARACTERS] = {0};
+    HuffmanNode *leaf_pointers[N_CHARACTERS] = {0};
+
+    BHeap *heap = huff_create_node_heap(input_path, characters, leaf_pointers);
+    HuffmanNode *tree = huff_tree_from_heap(heap);
     b_heap_free(heap);
 
+    HuffmanCode codes[N_CHARACTERS] = {0};
+    for (int i = 0; i < N_CHARACTERS; i++) {
+        codes[i] = h_tree_bubble(leaf_pointers[i], (HuffmanCode){0});
+    }
+
     huff_write_tree_to_file(tree, output_path);
-    huff_write_codes_to_file(leaf_pointers, output_path, input_path);
+    huff_write_codes_to_file(codes, output_path, input_path);
 
     h_node_free(tree);
 }
@@ -82,19 +90,11 @@ void huff_encode_file(char *input_path, char *output_path)
 void huff_decode_file(char *encoded_path, char *decoded_path)
 {
     FILE *encoded_file = fopen(encoded_path, "r");
-    size_t n_nodes;
-    size_t encoded_file_data_offset =
-        sizeof(n_nodes) * fread(&n_nodes, sizeof(n_nodes), 1, encoded_file);
-
-    char tree_buffer[n_nodes];
-    encoded_file_data_offset +=
-        fread(tree_buffer, sizeof(char), n_nodes, encoded_file);
-    fclose(encoded_file);
-
-    HuffmanNode *tree = h_tree_from_buffer(tree_buffer, n_nodes);
+    HuffmanNode *tree = h_tree_from_file(NULL, encoded_file);
+    size_t n_nodes = h_tree_size(tree);
 
     BitStreamReader *encoded_file_stream =
-        bitstream_reader_new_offset(encoded_path, encoded_file_data_offset);
+        bitstream_reader_new_offset(encoded_path, n_nodes);
     FILE *out_file = fopen(decoded_path, "w");
     int c;
     while (EOF != (c = h_tree_read_encoded_char(tree, encoded_file_stream))) {
@@ -107,8 +107,10 @@ void huff_decode_file(char *encoded_path, char *decoded_path)
 
 int main()
 {
+#if 1
     huff_encode_file("mobydick.txt", "mobydick.txt.huff");
     huff_decode_file("mobydick.txt.huff", "mobydick.2.txt");
+#endif
 #if 0
     huff_encode_file("test.txt", "test.txt.huff");
     huff_decode_file("test.txt.huff", "test.2.txt");

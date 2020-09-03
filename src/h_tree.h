@@ -20,5 +20,5 @@ HuffmanCode h_tree_search(HuffmanNode *node, int c, HuffmanCode h_code);
 size_t reverse_bits(size_t num, size_t n_bits);
 HuffmanCode h_tree_bubble(HuffmanNode *leaf, HuffmanCode h_code);
 HuffmanNode *h_tree_from_file(HuffmanNode *parent, FILE *tree_file);
-HuffmanNode *h_tree_from_buffer(char buffer[], size_t n_nodes);
+HuffmanNode *h_tree_from_buffer(char buffer[]);
 int h_tree_read_encoded_char(HuffmanNode *self, BitStreamReader *bs);
