@@ -154,7 +154,7 @@ int16_t bitstream_read_bit(BitStreamReader *bs)
     if (bs->offset == BITSTREAM_BUFFER_SIZE || bs->offset == 0) {
         char c;
         ssize_t read_status = read(bs->fd, &c, 1);
-        if (read_status == 0) {
+        if (read_status <= 0) {
             return -1;
         }
         bs->pending = c;

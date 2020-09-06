@@ -54,13 +54,12 @@ void b_heap_free(BHeap *self)
 void b_heap_sift_up(BHeap *self, size_t index)
 {
     size_t parent_index = (index - 1) / 2;
-    BHeapNode parent = self->data[parent_index];
-
     if (parent_index >= self->size) {
         return;
     }
+    BHeapNode parent = self->data[parent_index];
 
-    if (self->compare_nodes(parent, self->data[index]) < 0) {
+    if (self->compare_nodes(parent, self->data[index]) <= 0) {
         SWAP(self->data[parent_index], self->data[index], BHeapNode);
         b_heap_sift_up(self, parent_index);
     }

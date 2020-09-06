@@ -22,3 +22,4 @@ HuffmanCode h_tree_bubble(HuffmanNode *leaf, HuffmanCode h_code);
 HuffmanNode *h_tree_from_file(HuffmanNode *parent, FILE *tree_file);
 HuffmanNode *h_tree_from_buffer(char buffer[]);
 int h_tree_read_encoded_char(HuffmanNode *self, BitStreamReader *bs);
+char *h_tree_to_string(HuffmanNode *head);

@@ -13,9 +13,8 @@ HuffmanNode *huff_tree_from_heap(BHeap *heap)
     HuffmanNode *tree = b_heap_pop(heap);
     HuffmanNode *node = b_heap_pop(heap);
     while (node != NULL && tree != NULL) {
-        HuffmanNode *branch = h_node_compare(tree, node) < 0
-                                  ? h_branch_new(tree, node)
-                                  : h_branch_new(node, tree);
+        HuffmanNode *branch = NULL;
+        branch = h_branch_new(node, tree);
 
         b_heap_push(heap, branch);
         tree = b_heap_pop(heap);
@@ -74,6 +73,7 @@ void huff_encode_file(char *input_path, char *output_path)
 
     BHeap *heap = huff_create_node_heap(input_path, characters, leaf_pointers);
     HuffmanNode *tree = huff_tree_from_heap(heap);
+
     b_heap_free(heap);
 
     HuffmanCode codes[N_CHARACTERS] = {0};

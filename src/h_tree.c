@@ -168,14 +168,13 @@ HuffmanNode *h_tree_from_file(HuffmanNode *parent, FILE *tree_file)
 }
 
 struct CharStream {
-    const char *buffer;
+    char *buffer;
     size_t index;
 };
 
 HuffmanNode *h_tree_from_stream(struct CharStream *stream, HuffmanNode *parent)
 {
     char c = stream->buffer[stream->index];
-    printf("%c %li\n", c, stream->index);
     stream->index++;
 
     HuffmanNode *node = h_leaf_new(c, 0);
@@ -199,12 +198,35 @@ HuffmanNode *h_tree_from_buffer(const char *buffer)
     return h_tree_from_stream(&stream, NULL);
 }
 
+void h_tree_write_node_to_stream(HuffmanNode *node, struct CharStream *stream)
+{
+    stream->buffer[stream->index] =
+        node->symbol == '\0' ? '.' : (char)node->symbol;
+    stream->index++;
+
+    if (node->left) {
+        h_tree_write_node_to_stream(node->left, stream);
+    }
+
+    if (node->right) {
+        h_tree_write_node_to_stream(node->right, stream);
+    }
+}
+
+char *h_tree_to_string(HuffmanNode *head)
+{
+    size_t n_nodes = h_tree_size(head);
+    char *buffer = malloc(sizeof(*buffer) * (n_nodes + 1));
+    h_tree_write_node_to_stream(head, &((struct CharStream){.buffer = buffer}));
+    buffer[n_nodes] = '\0';
+    return buffer;
+}
+
 int h_tree_read_encoded_char(HuffmanNode *self, BitStreamReader *encoded_file)
 {
     HuffmanNode *node = self;
-    int16_t b = 0;
+    int16_t b = bitstream_read_bit(encoded_file);
     while (b >= 0) {
-        b = bitstream_read_bit(encoded_file);
         if (b == 0) {
             node = node->left;
         } else {
@@ -214,6 +236,8 @@ int h_tree_read_encoded_char(HuffmanNode *self, BitStreamReader *encoded_file)
         if (node->symbol != '\0') {
             return node->symbol;
         }
+
+        b = bitstream_read_bit(encoded_file);
     }
     return EOF;
 }
