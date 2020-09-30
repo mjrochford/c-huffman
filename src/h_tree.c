@@ -1,5 +1,5 @@
-#include "src/b_heap.h"
-#include "src/bitstream.h"
+#include "b_heap.h"
+#include "bitstream.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -200,8 +200,9 @@ HuffmanNode *h_tree_from_buffer(const char *buffer)
 
 void h_tree_write_node_to_stream(HuffmanNode *node, struct CharStream *stream)
 {
+    const int LOW_BYTE = 0xff;
     stream->buffer[stream->index] =
-        node->symbol == '\0' ? '.' : (char)node->symbol;
+        node->symbol == '\0' ? '.' : (char)(node->symbol & LOW_BYTE);
     stream->index++;
 
     if (node->left) {
